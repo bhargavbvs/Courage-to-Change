@@ -23,28 +23,27 @@ def getquestions():
         sql_query = "select q.id, q.question,u.username,q.upvotes,TIMESTAMPDIFF(hour,curtime(),q.created_at) as time," \
                     "count(c.comment) as comments from digitalhealth.questions q inner join digitalhealth.users u on " \
                     "q.user_id = u.id left join digitalhealth.comments c on q.id = c.question_id " \
-                    "group by q.id,q.question,u.username,q.upvotes,q.created_at"
+                    "group by q.id,q.question,u.username,q.upvotes,q.created_at order by abs(time)"
 
         cur.execute(sql_query)
         data = cur.fetchall()
         cur.close()
         db2.close()
 
+        json_data = []
+
         for d in data:
-            if (abs(d[3]) >= 24):
-                days = str(int(abs(d[3] / 24)))
+            if (abs(d[4]) >= 24):
+                days = str(int(abs(d[4] / 24)))
                 if (days == '1'):
                     time = days + ' day ago'
                 else:
                     time = days + ' days ago'
             else:
-                hours = str(abs(d[3]))
+                hours = str(abs(d[4]))
                 time = hours + ' hours ago'
-
-        json_data = []
-
-        for d in data:
-            json_data.append({"id": d[0], 'question': d[1], 'username': d[2], 'upvotes': d[3], 'comments': d[4], 'time': time})
+            json_data.append(
+                {"id": d[0], 'question': d[1], 'username': d[2], 'upvotes': d[3], 'comments': d[5], 'time': time})
 
         return jsonify(json_data)
 
@@ -57,14 +56,16 @@ def getcomments():
 
         db2 = con_pool.get_connection()
         cur = db2.cursor()
-        sql_query = "select c.comment,u.username,TIMESTAMPDIFF(hour,curtime(),c.created_at) from digitalhealth.comments c " \
-                    "inner join digitalhealth.users u on c.user_id = u.id where c.question_id = %d;" % (
+        sql_query = "select c.comment,u.username,TIMESTAMPDIFF(hour,curtime(),c.created_at) as time from digitalhealth.comments c " \
+                    "inner join digitalhealth.users u on c.user_id = u.id where c.question_id = %d order by abs(time);" % (
             questionid)
 
         cur.execute(sql_query)
         data = cur.fetchall()
         cur.close()
         db2.close()
+
+        json_data = []
         for d in data:
             if (abs(d[2]) >= 24):
                 days = str(int(abs(d[2] / 24)))
@@ -75,9 +76,6 @@ def getcomments():
             else:
                 hours = str(abs(d[2]))
                 time = hours + ' hours ago'
-        print(data)
-        json_data = []
-        for d in data:
             json_data.append({'comment': d[0], 'username': d[1], 'time': time})
 
         print(json_data)
